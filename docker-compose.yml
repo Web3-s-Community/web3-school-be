@@ -1,0 +1,18 @@
+version: "3.9"
+services:
+  app:
+    environment:
+      - TH_CONNSTR=${TH_CONNSTR}
+      - JK_JOBBUILD_TOKEN=${JK_JOBBUILD_TOKEN}
+      - JK_JOBSYNC_TOKEN=${JK_JOBSYNC_TOKEN}
+      - JK_AUTH=${JK_AUTH}
+      - JOB_BRANCH=${JOB_BRANCH}
+      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED}
+      - JK_BUILD_PARAMS_URL=${JK_BUILD_PARAMS_URL}
+      - JK_BUILD_URL=${JK_BUILD_URL}
+      - JK_SYNC_CONF_URL=${JK_SYNC_CONF_URL}
+      - SLACK_AUTH_TOKEN=${SLACK_AUTH_TOKEN}
+      - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+    ports:
+      - "8092:8092"
+    build: "."

@@ -1,0 +1,268 @@
+#!/usr/bin/env sh
+
+appPidName="autopilot-helper.pid"
+appFilename="autopilot-helper"
+
+################################################################################
+# Init dir, get current dir of this script in absolute
+################################################################################
+
+this="${BASH_SOURCE-$0}"
+while [ -h "$this" ]; do
+    ls=`ls -ld "$this"`
+    link=`expr "$ls" : '.*-> \(.*\)$'`
+    if expr "$link" : '.*/.*' > /dev/null; then
+        this="$link"
+    else
+        this=`dirname "$this"`/"$link"
+    fi
+done
+
+# convert relative path to absolute path
+bin=`dirname "$this"`
+script=`basename "$this"`
+bin=`cd "$bin">/dev/null; pwd -P`
+this="$bin/$script"
+
+cd $bin
+
+################################################################################
+# Init some paths
+################################################################################
+
+versionFile="$bin/VERSION"
+appBinFile="$bin/bin/$appFilename"
+lastStartDaemonArgsFile="$bin/.last_daemon_args"
+logDir="$bin/log"
+pidDir="$bin/pid"
+mkdir -p $logDir $pidDir
+
+stdoutLog="$logDir/app.out"
+stderrLog="$logDir/app.err"
+pidFile="$pidDir/$appPidName.pid"
+
+################################################################################
+# Functions
+################################################################################
+
+printUsage() {
+    echo "Script for run app $appFilename.
+
+$script (OPTION) <ARG...>
+
+ Options:
+  start      Runs app in the foreground.
+  daemon     Runs app at daemon mode (background process). See more: $script daemon help
+  version    Output version information and exit
+  help       Display this help and exit
+"
+}
+
+printDaemonUsage(){
+    echo "Script for run app $appFilename at daemon mode
+
+$script daemon (OPTION) <ARG...>
+
+ Options:
+  start      Start app
+  stop       Stop app
+  restart    Restart app
+  status     Get current status of app (running or stopped)
+  pid        Get pid
+  help       Display this help and exit
+"
+}
+
+getPid() {
+    cat "$pidFile"
+}
+
+isRunning() {
+    pid=`getPid 2>/dev/null`
+    [ -f "$pidFile" ] && kill -0 $pid 1>/dev/null 2>&1
+}
+
+waitForProcessEnd() {
+    local pidKilled=$1
+    processedAt=`date +%s`
+    while kill -0 $pidKilled > /dev/null 2>&1;
+    do
+        printf "."
+        sleep 1;
+        if [ $(( `date +%s` - $processedAt )) -gt 60 ]; then
+            break;
+        fi
+    done
+    # process still there : kill -9
+    if kill -0 $pidKilled > /dev/null 2>&1; then
+        kill -9 $pidKilled > /dev/null 2>&1
+    fi
+    # Add a CR after we're done w/ dots.
+    echo
+}
+
+startForeground(){
+    exec $appBinFile $@
+}
+
+writeLastStartDaemonArgs(){
+    if [ -f $lastStartDaemonArgsFile ]; then
+        rm -f $lastStartDaemonArgsFile
+    fi
+    echo $@ > $lastStartDaemonArgsFile
+}
+
+readLastStartDaemonArgs(){
+    if [ -f $lastStartDaemonArgsFile ]; then
+        local args=`head -n 1 $lastStartDaemonArgsFile`
+        echo $args
+    else
+        echo ""
+    fi
+}
+
+startDaemon(){
+    if isRunning $pidFile; then
+        echo App running as process `getPid`.  Stop it first.
+        exit 1
+    else
+        nohup $appBinFile $@ < /dev/null >> "$stdoutLog" 2>> "$stderrLog"  &
+        echo $! > $pidFile
+        sleep 1
+        if ! isRunning $pidFile; then
+            echo "Unable to start, see $stdoutLog and $stderrLog"
+            exit 1
+        fi
+        writeLastStartDaemonArgs "$@"
+        echo "App started"
+    fi
+}
+
+stopDaemon(){
+    response=0
+    if isRunning $pidFile; then
+        pidToKill=`getPid`
+        if kill -0 $pidToKill > /dev/null 2>&1; then
+            printf "Stopping app with pid $pidToKill "
+            kill $pidToKill > /dev/null 2>&1
+            waitForProcessEnd $pidToKill
+        else
+            retval=$?
+            echo no app to stop because kill -0 of pid $pidToKill failed with status $retval
+            response=2
+        fi
+        rm -f $pidFile
+    else
+        echo no app to stop because no pid file $pidFile
+        response=1
+    fi
+    return "$response"
+}
+
+restartDaemon(){
+    stopDaemon
+    retval=$?
+    if [ "$retval" == 1 ]; then
+        exit 1
+    fi
+    if [ "$retval" == 2 ]; then
+        exit 1
+    fi
+    if isRunning $pidFile; then
+        echo "Unable to stop, will not attempt to start"
+        exit 1
+    fi
+    args=`readLastStartDaemonArgs`
+    startDaemon $args
+}
+
+statusDaemon(){
+    if isRunning $pidFile; then
+        printStatus "Running"
+    else
+        printStatus "Stopped"
+        exit 1
+    fi
+}
+
+printStatus(){
+    local status=$1
+    if [ -n "$status" ]; then
+        echo "Status: $status"
+    fi
+}
+
+printPid(){
+    pid=`getPid 2>/dev/null`
+    if [ -n "$pid" ]; then
+        echo "PID: $pid"
+    fi
+}
+
+printVersion(){
+    if [ -f "$versionFile" ]; then
+        echo `cat $versionFile`
+    else
+        echo "unknown version"
+    fi
+}
+
+################################################################################
+# Main
+################################################################################
+
+if [ $# -le 0 ]; then
+    printUsage
+    exit 1
+fi
+
+globalOption=$1
+shift
+
+case $globalOption in
+    (start)
+        startForeground "$@"
+        ;;
+    (daemon)
+        # because we shift 1 time above, then this will be $1
+        daemonOption=$1
+        shift
+        case $daemonOption in
+            (start)
+                startDaemon "$@"
+                ;;
+            (stop)
+                stopDaemon
+                ;;
+            (restart)
+                restartDaemon
+                ;;
+            (status)
+                printPid
+                statusDaemon
+                ;;
+            (pid)
+                printPid
+                ;;
+            (help)
+                printDaemonUsage
+                ;;
+            *)
+                printDaemonUsage
+                exit 1
+                ;;
+        esac
+        ;;
+    (version)
+        printVersion
+        ;;
+    (help)
+        printUsage
+        ;;
+    *)
+        printUsage
+        exit 1
+        ;;
+esac
+
+exit 0

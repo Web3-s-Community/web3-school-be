@@ -1,0 +1,5 @@
+/codename-scanner/*
+.env
+**/data/*
+/.idea
+vendor/
