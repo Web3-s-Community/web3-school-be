@@ -49,12 +49,12 @@ type TaskScheduler struct {
 	scheduler    *cron.Cron
 	lock         sync.Mutex
 	jobManager   *model.Manager
-	thManager    *model.THManager
+	thManager    *model.DbManager
 	jobBranch    string
 	Notificator  *model.Notificator
 }
 
-func NewTaskScheduler(jobBranch string, thManager *model.THManager, notificator *model.Notificator) *TaskScheduler {
+func NewTaskScheduler(jobBranch string, thManager *model.DbManager, notificator *model.Notificator) *TaskScheduler {
 	jkToken := strings.TrimSpace(os.Getenv("JK_JOBBUILD_TOKEN"))
 	return &TaskScheduler{
 		jkBuildToken: jkToken,
