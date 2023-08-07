@@ -30,6 +30,16 @@ func NewDbManager(connStr string) *DbManager {
 	}
 }
 
+func (m *DbManager) InsertJobData(socketId, language, code, codeId, task, userId, jobId, status string) error {
+	query := "INSERT INTO code (socketId, language, code, codeId, task, userId, jobId, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+	_, err := m.db.Exec(query, socketId, language, code, codeId, task, userId, jobId, status)
+	if err != nil {
+		fmt.Println("Error inserting data: ", err)
+		return err
+	}
+	return nil
+}
+
 func (m *DbManager) GetAllChallenges() ([]*Challenge, error) {
 	var challenges []*Challenge
 	query := "SELECT id, slug, language, title, difficulty, points, free, tags, prompt, videos, starter, tasks, hints, code, solution, test FROM challenge"

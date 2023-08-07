@@ -41,10 +41,14 @@ func startService() {
 	challengeDetailHandler := handler.ChallengeDetailHandler{
 		DbManager: dbManager,
 	}
+	jobHandler := handler.JobHandler{
+		DbManager: dbManager,
+	}
 
 	http.HandleFunc("/", demoHandler.Handle)
 	http.HandleFunc("/challenges", challengesHandler.Handle)
 	http.HandleFunc("/challenge", challengeDetailHandler.Handle)
+	http.HandleFunc("/job", jobHandler.Handle)
 
 	port := 8092
 	fmt.Printf("Start serving HTTP at port: %v\n", port)
