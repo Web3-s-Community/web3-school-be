@@ -77,7 +77,7 @@ func (m *DbManager) GetAllChallenges() ([]*Challenge, error) {
 
 func (m *DbManager) GetChallengeByID(challengeID string) (*Challenge, error) {
 	var c Challenge
-	query := "SELECT id, slug, language, title, difficulty, points, free, tags, prompt, videos, starter, tasks, hints, code, solution, test FROM challenge WHERE id = ?"
+	query := "SELECT id, slug, language, title, difficulty, points, free, tags, prompt, videos, starter, tasks, hints, code, solution, test FROM challenge WHERE slug = ?"
 	err := m.db.QueryRow(query, challengeID).Scan(
 		&c.ID,
 		&c.Slug,

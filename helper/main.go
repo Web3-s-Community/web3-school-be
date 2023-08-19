@@ -21,7 +21,6 @@ func init() {
 func main() {
 	startService()
 }
-
 func startService() {
 	fmt.Println("Starting service")
 	dbConnStr := os.Getenv("DB_CONNSTR")
